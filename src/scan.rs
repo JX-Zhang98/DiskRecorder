@@ -1,8 +1,33 @@
 use std::fs;
+use std::fmt;
 
-pub fn traverse_directory(path: &str) -> u64{
+pub struct NodeInfo {
+    name: String,
+    node_type: String,
+    size: u64,
+    children: Vec<NodeInfo>,
+}
+
+impl fmt::Display for NodeInfo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}\t{}\t{}\n", self.name, self.node_type, self.size);
+        if self.children.len() > 0 {
+            for child in &self.children {
+                print!("\t{}", child);
+            }
+        }
+        return Ok(())
+    }
+}
+
+pub fn traverse_directory(path: &str) -> NodeInfo{
+    let mut info = NodeInfo{
+        name: path.to_string(),
+        node_type: String::from("dir"),
+        size: 0,
+        children: vec![],
+    };
     if let Ok(entries) = fs::read_dir(path) {
-        let mut sum  = 0;
         for entry in entries {
             if let Ok(entry) = entry {
                 let entry_path = entry.path();
@@ -16,24 +41,27 @@ pub fn traverse_directory(path: &str) -> u64{
                     if let Ok(metadata) = fs::metadata(entry_name.to_string()){
                         let file_size = metadata.len();
                         if file_size > 0 {
-                            println!("{} with size {}", entry_name, file_size);
-                            sum = sum+file_size;
+                            let child_info = NodeInfo{
+                                name: entry_name.to_string(),
+                                node_type: String::from("file"),
+                                size: file_size,
+                                children: vec![],
+                            };
+                            info.size += file_size;
+                            info.children.push(child_info);     
                         };
-                        
+                                           
                     }                    
                 }else if entry_path.is_dir() {
                     // 如果是目录，则递归遍历
-                    let res: u64 =  traverse_directory(entry_path.to_str().unwrap());
-                    sum += res; 
-                    // 
+                    let res: NodeInfo =  traverse_directory(entry_path.to_str().unwrap());
+                    info.size += res.size;         
+                    info.children.push(res);
+                               
                 }
             }
         }
-        if sum != 0{
-            println!("{} is a directory, with summary size: {}", path, sum);
-        }
-        return sum
     }
-    return 0
+    return info
 }
 
